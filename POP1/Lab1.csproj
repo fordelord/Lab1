@@ -81,14 +81,5 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="ПОП 1.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="ПОП1.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="формула.png" />
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
