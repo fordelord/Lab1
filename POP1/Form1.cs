@@ -8,14 +8,25 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace POP1
 {
     public partial class Form1 : Form
     {
+        static public Form1 form1;
+
         public Form1()
         {
             InitializeComponent();
+
+            form1 = this;
+            
+            y = new double[n];
+            F = new MyDel[n];
+            AnalyticalData = new List<double>();
+            NumericalData = new List<double>();
+
             BuildChart();
 
         }
@@ -32,7 +43,96 @@ namespace POP1
         private static double k2, B;
         private static double x, C1, C2;
 
+        public double tMax { get; set; }
+
+        public double dt;
+        double dtInput = 0.01;
+
+        double[] y;
+        MyDel[] F;
+        int n = 2;
+
         static double f;
+
+        public delegate double MyDel(double t, double[] y);
+
+        public List<double> AnalyticalData;
+        public List<double> NumericalData;
+
+        double f1(double t, double[] y)
+        {
+            return y[1];
+        }
+        double f2(double t, double[] y)
+        {
+            // ispav
+            return -(c / m - w * w) * y[0] + c * l0 / m;
+        }
+        private double calculateBValue()
+        {
+            return c * l0 / m;
+        }
+
+        private double calculateK2Value()
+        {
+            return c / m - w * w;
+        }
+        private double[] getKYValue(double[] yValue, double[] y, int n)
+        {
+            double[] kYValue = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                kYValue[i] = y[i] + 0.5 * yValue[i];
+            }
+
+            return kYValue;
+        }
+
+        public double[] RK(double t, double[] y, MyDel[] F, double h)
+        {
+            int n = y.Length;
+            double[] k1 = new double[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                k1[i] = h * F[i](t, y);
+            }
+
+            // k2 calculation
+            double[] k2 = new double[n];
+            double[] k2YValue = getKYValue(k1, y, n);
+            double tFunctionValue = t + h / 2;
+            for (int i = 0; i < n; i++)
+            {
+                k2[i] = h * F[i](tFunctionValue, k2YValue);
+            }
+
+            double[] k3 = new double[n];
+            double[] k3YValue = getKYValue(k2, y, n);
+            for (int i = 0; i < n; i++)
+            {
+                k3[i] = h * F[i](tFunctionValue, k3YValue);
+            }
+
+            double[] k4 = new double[n];
+            double[] k4YValue = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                k4YValue[i] = y[i] + k3[i];
+            }
+            for (int i = 0; i < n; i++)
+            {
+                k4[i] = h * F[i](t + h, k4YValue);
+            }
+
+            double[] result = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                result[i] = y[i] + (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]) / 6;
+            }
+
+            return result;
+        }
 
         private void resetInputFields()
         {
@@ -59,6 +159,8 @@ namespace POP1
 
             rInput.Value = Convert.ToDecimal(r);
             rInput.Increment = Convert.ToDecimal(0.01);
+
+            comboBox1.Text = "0.01";
         }
 
 
@@ -76,21 +178,17 @@ namespace POP1
             resetInputFields();
         }
 
-        private double calculateK2Value()
-        {
-            return -g * Math.Cos(a * Rad) + (c * l0) / m + w * w * r * Math.Sin(a * Rad);
-        }
-
-        private double calculateBValue()
-        {
-            return c / m - w * w * Math.Sin(a * Rad);
-        }
-
         private void BuildChart()
         {
-            double tMax = 12.0;
-            double dt = 0.01;
-            int pointsLength= Convert.ToInt16(tMax / dt);
+            //alla
+            y[0] = x0;
+            y[1] = v0;
+            F[0] = f1;
+            F[1] = f2;
+
+            tMax = 12.0;
+            dt = 0.01;
+            int pointsLength = Convert.ToInt16(tMax / dt);
 
 
             chart1.Series.Clear();
@@ -124,12 +222,28 @@ namespace POP1
                 }
 
                 series.Points.AddXY(t, x);
+                AnalyticalData.Add(x);
+
+                //alla
+                // y = RK(t, y, F, 0.01);
+                //series.Points.AddXY(t, y[0]);
+            }
+
+            dt = 0.01;
+            Series series2 = new Series();
+            series2.ChartType = SeriesChartType.Line;
+            chart1.Series.Add(series2);
+            for (double i = 0; i < tMax; i += dt)
+            {
+                y = RK(i, y, F, dt);
+                series2.Points.AddXY(i, y[0]);
+                NumericalData.Add(y[0]);
             }
 
             setOscillationsFrequency();
         }
 
-        private void setOscillationsFrequency ()
+        private void setOscillationsFrequency()
         {
             f = w / 2 / Math.PI;
             textBox1.Text = "Частота коливань: " + Convert.ToString(f);
@@ -173,9 +287,22 @@ namespace POP1
             BuildChart();
         }
 
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+            Form2 form2 = new Form2();
+            form2.ShowDialog();
+        }
+
         private void handleCInputChange(object sender, EventArgs e)
         {
             c = Convert.ToDouble(cInput.Value);
+            BuildChart();
+        }
+
+        private void comboBox1_SelectedIndexChanged_1(object sender, EventArgs e)
+        {
+            textBox2.Text = dtInput.ToString();
+
             BuildChart();
         }
 
